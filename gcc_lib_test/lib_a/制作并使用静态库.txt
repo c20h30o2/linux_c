@@ -1,0 +1,25 @@
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test$ gcc -c ./src/func1.c -I./include -o ./lib_a/func1.o
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test$ gcc -c ./src/func2.c -I./include -o ./lib_a/func2.o
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test$ ar rsc ./lib_a/libfunc12.a ./lib_a/func1.o ./lib_a/func2.o
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test$ gcc -I./include -c ./main.c -L./lib_a -lfunc12 -o ./lib_a/main
+
+
+上面的步骤中最后一步出错
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test/lib_a$ ./main
+bash: ./main: 无法执行二进制文件：可执行文件格式错误
+
+问题分析：
+你在最后一步用的是：
+gcc -I./include -c ./main.c -L./lib_a -lfunc12 -o ./lib_a/main
+这里有个关键问题：
+-c参数表示只编译，不链接，所以不会生成可执行文件，而是生成目标文件（.o）。
+但你又用了-o ./lib_a/main，这会让gcc把main.o输出为./lib_a/main，而不是可执行文件。
+正确的做法
+去掉-c参数，让gcc进行链接，生成可执行文件：
+Apply to client.c
+Run
+总结
+-c：只编译，不链接，生成.o文件
+不加-c：编译并链接，生成可执行文件
+正确：
+gcc -I./include ./main.c -L./lib_a -lfunc12 -o ./lib_a/main

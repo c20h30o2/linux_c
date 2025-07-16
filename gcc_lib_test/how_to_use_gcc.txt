@@ -1,0 +1,127 @@
+为了配合使用动态库，在~下创建一个my_lib文件夹专门用于存储自己搞出来的库，并将该目录的路径保存在了~/.bashrc下，以便永久使用,注意，当修改~/.bashrc后需要执行. /.bashrc或者执行source ~/.bashrc或者重新登陆
+
+gcc -E test.c -o test.i	预处理
+
+gcc -S test.i -o test.s	汇编
+
+gcc -c test.s -o test.o	二进制
+
+gcc test.o -o test	可执行
+
+    • -v  查看gcc版本号, --version也可以
+    • -E  生成预处理文件
+    • -S  生成汇编文件
+    • -c  只编译, 生成.o文件, 通常称为目标文件
+    • -I   指定头文件所在的路径
+    • -L   指定库文件所在的路径
+    • -l    指定库的名字
+    • -o   指定生成的目标文件的名字
+    • -g   包含调试信息, 使用gdb调试需要添加-g参数
+    • -On n=0∼3 编译优化,n越大优化得越多
+
+例如:下面代码片段
+int a = 10;
+int b = a;
+int c = b;
+printf("%d", c);
+
+上面的代码可能会被编译器优化成:
+int c = 10;
+printf("%d", 10);
+
+    • -Wall 提示更多警告信息
+int a;
+int b;
+int c = 10;
+printf(“[%d]\n”, c);
+编译如下: 
+gcc -o test -Wall test.c
+warning: unused variable ‘b’ [-Wunused-variable]
+warning: unused variable ‘a’ [-Wunused-variable]
+
+    • -D  编译时定义宏
+test.c文件中的代码片段: 
+printf("MAX==[%d]\n", MAX);
+         编译: 
+    	gcc -o test test.c -D MAX=10
+        gcc -o test test.c -DMAX=10
+
+
+
+
+静态库的制作
+    • 前缀：lib
+    • 库名称：自定义即可, 如test
+    • 后缀：.a
+下面以fun1.c , fun2.c和head.h三个文件为例讲述静态库的制作和使用, 其中head.h文件中有函数的声明,  fun1.c和fun2.c中有函数的实现.
+
+步骤1：将c源文件生成对应的.o文件
+		gcc -c fun1.c fun2.c
+   或者分别生成.o文件:
+ 		gcc -c fun1.c -o fun1.o
+ 		gcc -c fun2.c -o fun2.o
+步骤2：使用打包工具ar将准备好的.o文件打包为.a文件 
+    • 在使用ar工具是时候需要添加参数rcs
+    • r更新、c创建、s建立索引
+    • 命令：ar rcs 静态库名 .o文件
+    • ar rcs libtest1.a fun1.o fun2.o
+
+静态库的使用
+静态库制作完成之后, 需要将.a文件和头文件一定发布给用户.
+假设测试文件为main.c, 静态库文件为libtest1.a, 头文件为head.h
+用到的参数：
+    • -L：指定要连接的库的所在目录
+    • -l：指定链接时需要的静态库, 去掉前缀和后缀
+    • -I: 指定main.c文件用到的头文件head.h所在的路径
+gcc -o main1 main.c -L./ -ltest1 -I./
+实际上经过测试只需要：gcc -o main1 main.c -L. -ltest1 即可
+
+
+
+共享库的制作
+     • 前缀：lib
+    • 库名称：自己定义即可, 如test
+    • 后缀：.so
+所以最终的静态库的名字应该为：libtest.so
+
+   1. 生成目标文件.o, 此时要加编译选项：-fPIC（fpic）
+gcc -fpic -c fun1.c fun2.c
+参数：-fpic创建与地址无关的编译程序(pic, position independent code), 目的就是为了能够在多个应用程序间共享.
+    2. 生成共享库, 此时要加链接器选项: -shared（指定生成动态链接库）
+gcc -shared fun1.o fun2.o -o libtest2.so
+共享库的使用
+引用动态库编译成可执行文件（跟静态库方式一样）：
+用到的参数：
+    • -L：指定要连接的库的所在目录
+    • -l：指定链接时需要的动态库, 去掉前缀和后缀
+    • -I: 指定main.c文件用到的头文件head.h所在的路径
+gcc main.c -I./ -L./ -ltest2 -o main2
+
+
+注意：链接了动态库的程序在运行时，可能会找不到链接的动态库
+
+在未进行配置的时候：
+分析为什么在执行的时候找不到libtest2.so库
+    • 当系统加载可执行代码时候, 能够知道其所依赖的库的名字, 但是还需要知道所依赖的库的绝对路径。此时就需要系统动态载入器(dynamic linker/loader)。
+ldd命令可以查看可执行文件依赖的库文件, 执行ldd main2, 可以发现libtest2.so找不到.
+    • 对于elf格式的可执行程序，是由ld-linux.so*来完成的, 它先后搜索elf文件的 DT_RPATH段 — 环境变量LD_LIBRARY_PATH — /etc/ld.so.cache文件列表 — /lib/, /usr/lib目录找到库文件后将其载入内存。
+使用file命令可以查看文件的类型: file main2
+
+如何让系统找到共享库
+    • 拷贝自己制作的共享库到/lib或者/usr/lib
+    • 临时设置LD_LIBRARY_PATH:
+        ◦ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:库路径 
+    • 永久设置, 把export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:库路径, 设置到∼/.bashrc文件中, 然后在执行下列三种办法之一:
+    • 执行. ~/.bashrc使配置文件生效(第一个.后面有一个空格)
+    • 执行source ~/.bashrc配置文件生效
+    • 退出当前终端, 然后再次登陆也可以使配置文件生效
+    • 永久设置,把export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:库路径，设置到/etc/profile文件中
+    • 将其添加到 /etc/ld.so.cache文件中
+        ◦ 编辑/etc/ld.so.conf文件, 加入库文件所在目录的路径
+        ◦ 运行sudo ldconfig -v, 该命令会重建/etc/ld.so.cache文件
+
+解决了库的路径问题之后, 再次ldd命令可以查看可执行文件依赖的库文件, ldd main2
+
+
+
+

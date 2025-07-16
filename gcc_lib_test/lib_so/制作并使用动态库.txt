@@ -1,0 +1,50 @@
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test$ gcc -fpic -c ./src/func1.c -I./include -o ./lib_so/func1.o
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test$ gcc -fpic -c ./src/func2.c -I./include -o ./lib_so/func2.o
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test$ gcc -shard ./lib_so/func1.o ./lib_so/func2.o -o ./lib_so/libfunc12.so
+gcc: error: unrecognized command-line option ‘-shard’; did you mean ‘-shared’?
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test$ gcc -shared ./lib_so/func1.o ./lib_so/func2.o -o ./lib_so/libfunc12.so
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test$ gcc -I./include ./main.c -L./lib_so -lfunc12 -o ./lib_so/main
+
+注意：c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test$ gcc -I./include ./main.c -L~/my_lib -lfunc12 -o ./lib_so/main 是错误的因为-L~/my_lib -lfunc12中出现了~
+
+在未进行任何配置时，虽然能成功链接动态库，在运行时却报错说找不到该动态库
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test/lib_so$ ./main
+./main: error while loading shared libraries: libfunc12.so: cannot open shared object file: No such file or directory
+
+使用ldd 进行验证：发现确实找不到libfunc12.so
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test/lib_so$ ldd ./main
+	linux-vdso.so.1 (0x00007de029f10000)
+	libfunc12.so => not found
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007de029c00000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007de029f12000)
+
+
+如何让系统找到共享库
+    • 拷贝自己制作的共享库到/lib或者/usr/lib
+    • 临时设置LD_LIBRARY_PATH:
+        ◦ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:库路径 
+    • 永久设置, 把export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:库路径, 设置到∼/.bashrc文件中, 然后在执行下列三种办法之一:
+    • 执行. ~/.bashrc使配置文件生效(第一个.后面有一个空格)
+    • 执行source ~/.bashrc配置文件生效
+    • 退出当前终端, 然后再次登陆也可以使配置文件生效
+    • 永久设置,把export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:库路径，设置到/etc/profile文件中
+    • 将其添加到 /etc/ld.so.cache文件中
+        ◦ 编辑/etc/ld.so.conf文件, 加入库文件所在目录的路径
+        ◦ 运行sudo ldconfig -v, 该命令会重建/etc/ld.so.cache文件
+
+
+因为这只是用来测试的文件，所以只做临时配置
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test/lib_so$ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/c20h30o2/c_project/linxu_c/gcc_lib_test/lib_so
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test/lib_so$ ./main
+func1
+func2
+成功运行
+
+此时再运行ldd main
+c20h30o2@c20h30o2:~/c_project/linxu_c/gcc_lib_test/lib_so$ ldd ./main
+	linux-vdso.so.1 (0x00007fe50ffb8000)
+	libfunc12.so (0x00007fe50ffa8000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fe50fc00000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007fe50ffba000)
+
+
