@@ -1,0 +1,33 @@
+read
+write
+lseek
+open
+close
+lseek
+perror errno
+stat   lstat    struct stat      st_mode
+
+dup
+dup2
+fcntl
+
+fork
+kill
+execl
+
+wait  waitpid
+
+pipe
+fifo
+mmap
+
+signal
+raise
+abort
+alarm
+setitimer
+
+信号集相关函数
+
+sigaction
+sigchild
